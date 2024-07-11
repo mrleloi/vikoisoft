@@ -35,6 +35,13 @@
 <div id="drop_zone">Or drag and drop a text file here</div>
 <div id="output"></div>
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (!window.Worker) {
+        document.getElementById('output').innerHTML = 'Sorry, Web Workers are not supported in your browser. Please try using a desktop browser like Chrome or Firefox.';
+        return;
+    }
+});
+
 document.getElementById('drop_zone').addEventListener('dragover', function(event) {
   event.stopPropagation();
   event.preventDefault();
