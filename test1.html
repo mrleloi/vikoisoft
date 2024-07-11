@@ -35,13 +35,6 @@
 <div id="drop_zone">Or drag and drop a text file here</div>
 <div id="output"></div>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    if (!window.Worker) {
-        document.getElementById('output').innerHTML = 'Sorry, Web Workers are not supported in your browser. Please try using a desktop browser like Chrome or Firefox.';
-        return;
-    }
-});
-
 document.getElementById('drop_zone').addEventListener('dragover', function(event) {
   event.stopPropagation();
   event.preventDefault();
@@ -69,42 +62,11 @@ function processFileEvent(event, isInputChange = false) {
 
 function performAllTests() {
   return new Promise((resolve, reject) => {
-    const cpuTime = cpuTest(1000000);
-    const memoryUsage = memoryTest();
-    const networkSpeed = testNetworkSpeed();
+    const cpuTime = cpuTest(1000000); // Simulated CPU test
+    const memoryUsage = memoryTest(); // Simulated memory usage test
+    const networkSpeed = testNetworkSpeed(); // Simulated network speed test
     resolve({ cpuTime, memoryUsage, networkSpeed });
   });
-}
-
-function cpuTest(iterations) {
-  const startTime = performance.now();
-  let sum = 0;
-  for (let i = 0; i < iterations; i++) {
-    sum += Math.sqrt(i) * Math.tan(i);
-  }
-  const endTime = performance.now();
-  return endTime - startTime;
-}
-
-function memoryTest() {
-  let memoryUsageStart = performance.memory.usedJSHeapSize;
-  let objects = [];
-  for (let i = 0; i < 100000; i++) {
-    objects.push({ index: i, value: Math.random() });
-  }
-  let memoryUsageEnd = performance.memory.usedJSHeapSize;
-  return memoryUsageEnd - memoryUsageStart;
-}
-
-function testNetworkSpeed() {
-  const startTime = Date.now();
-  return fetch('https://example.com/largefile')
-    .then(response => response.blob())
-    .then(blob => {
-      const endTime = Date.now();
-      const speed = blob.size / (endTime - startTime);
-      return speed;
-    });
 }
 
 function calculateOptimalParameters(fileSize, cpuTime) {
@@ -120,9 +82,40 @@ function calculateOptimalParameters(fileSize, cpuTime) {
 }
 
 function processFile(file, numWorkers, chunkSize) {
-  // Process file with workers and chunk size
-  console.log('Processing file with ' + numWorkers + ' workers and chunk size ' + chunkSize);
+  const sliceSize = Math.ceil(file.size / numWorkers);
+  let offset = 0;
+  let completed = 0;
+  const results = [];
+
+  for (let i = 0; i < numWorkers; i++) {
+    const worker = new Worker('worker.js');
+    const slice = file.slice(offset, offset + sliceSize);
+    worker.postMessage({ slice, index: i });
+
+    worker.onmessage = function(event) {
+      console.log('Worker ' + event.data.index + ' said: ', event.data.result);
+      results[event.data.index] = event.data.result;
+      completed++;
+      if (completed === numWorkers) {
+        document.getElementById('output').innerText = 'All slices processed. Data: ' + results.join(', ');
+      }
+    };
+
+    worker.onerror = function(error) {
+      console.error('Worker error: ', error);
+      document.getElementById('output').innerText += '\nError in worker: ' + error.message;
+      worker.terminate();
+      // Optionally retry the task
+      if (retries < 3) {
+        console.log('Retrying worker ' + i);
+        processFile(slice, 1, sliceSize); // Retry with the same slice
+      }
+    };
+
+    offset += sliceSize;
+  }
 }
+
 </script>
 </body>
 </html>
