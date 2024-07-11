@@ -1,8 +1,9 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>File Processing App</title>
+<title>Advanced File Processing App</title>
 <style>
   #drop_zone {
     width: 300px;
@@ -12,15 +13,109 @@
     text-align: center;
     padding: 20px;
     color: #009688;
+    margin: 20px auto;
+    cursor: pointer;
   }
+
+  #file_input {
+    display: block;
+    margin: 20px auto;
+  }
+
   #output {
     margin-top: 20px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    min-height: 20px;
   }
 </style>
 </head>
 <body>
-<div id="drop_zone">Kéo và thả file văn bản vào đây</div>
+<input type="file" id="file_input" accept=".txt">
+<div id="drop_zone">Or drag and drop a text file here</div>
 <div id="output"></div>
-<script src="script.js"></script>
+<script>
+document.getElementById('drop_zone').addEventListener('dragover', function(event) {
+  event.stopPropagation();
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'copy';
+});
+
+document.getElementById('drop_zone').addEventListener('drop', processFileEvent);
+document.getElementById('file_input').addEventListener('change', function(event) {
+  processFileEvent(event, true);
+});
+
+function processFileEvent(event, isInputChange = false) {
+  event.stopPropagation();
+  event.preventDefault();
+  const file = isInputChange ? event.target.files[0] : event.dataTransfer.files[0];
+  if (!file || !file.name.endsWith('.txt')) {
+    document.getElementById('output').innerText = 'Error: Only .txt files are accepted';
+    return;
+  }
+  performAllTests().then(performance => {
+    const { numWorkers, chunkSize } = calculateOptimalParameters(file.size, performance.cpuTime);
+    processFile(file, numWorkers, chunkSize);
+  }).catch(err => document.getElementById('output').innerText = 'Performance test failed: ' + err.message);
+}
+
+function performAllTests() {
+  return new Promise((resolve, reject) => {
+    const cpuTime = cpuTest(1000000);
+    const memoryUsage = memoryTest();
+    const networkSpeed = testNetworkSpeed();
+    resolve({ cpuTime, memoryUsage, networkSpeed });
+  });
+}
+
+function cpuTest(iterations) {
+  const startTime = performance.now();
+  let sum = 0;
+  for (let i = 0; i < iterations; i++) {
+    sum += Math.sqrt(i) * Math.tan(i);
+  }
+  const endTime = performance.now();
+  return endTime - startTime;
+}
+
+function memoryTest() {
+  let memoryUsageStart = performance.memory.usedJSHeapSize;
+  let objects = [];
+  for (let i = 0; i < 100000; i++) {
+    objects.push({ index: i, value: Math.random() });
+  }
+  let memoryUsageEnd = performance.memory.usedJSHeapSize;
+  return memoryUsageEnd - memoryUsageStart;
+}
+
+function testNetworkSpeed() {
+  const startTime = Date.now();
+  return fetch('https://example.com/largefile')
+    .then(response => response.blob())
+    .then(blob => {
+      const endTime = Date.now();
+      const speed = blob.size / (endTime - startTime);
+      return speed;
+    });
+}
+
+function calculateOptimalParameters(fileSize, cpuTime) {
+  let numWorkers, chunkSize;
+  if (cpuTime < 500) {
+    numWorkers = navigator.hardwareConcurrency || 4;
+    chunkSize = Math.ceil(fileSize / numWorkers);
+  } else {
+    numWorkers = 2;
+    chunkSize = Math.ceil(fileSize / numWorkers);
+  }
+  return { numWorkers, chunkSize };
+}
+
+function processFile(file, numWorkers, chunkSize) {
+  // Process file with workers and chunk size
+  console.log('Processing file with ' + numWorkers + ' workers and chunk size ' + chunkSize);
+}
+</script>
 </body>
 </html>
