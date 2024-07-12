@@ -25,8 +25,10 @@ function processSlice(arrayBuffer) {
     // Ví dụ: Đếm số từ trong một đoạn văn bản
     const text = new TextDecoder("utf-8").decode(arrayBuffer);
     console.log(text);
-    const words = text.trim().split(/\s+/);
-    const wordCount = words.length;
-
-    return wordCount;
+    const words = text.trim();
+    let wordCounts = 0;
+    if (words.length > 0) {
+        wordCounts = words.split(/\s+/).length;
+    }
+    return wordCounts;
 }
