@@ -149,7 +149,7 @@ function startWorker(slice, taskId) {
 }
 
 function handleWorkerMessage(event, taskId) {
-  if (event.data.type === 'done' && event.data.result) {
+  if (event.data.type === 'done') {
     console.log('Task #' + taskId + ' result: ', event.data.result);
     results[taskId] = event.data.result;
     numWorkerTasksCompleted++;
