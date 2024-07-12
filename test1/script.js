@@ -1,6 +1,8 @@
 let retriesCount = {};
 let isPerformanceChecked = false;
 let results = [];
+let completed = 0;
+let numWorkers = 0;
 
 document.getElementById('drop_zone').addEventListener('dragover', function(event) {
   event.stopPropagation();
@@ -62,21 +64,19 @@ function calculateOptimalParameters(fileSize, performance) {
   console.log(fileSize);
   let cpuTime = performance.cpuTime;
   let memoryUsage = performance.memoryUsage;
-  let numWorkers, chunkSize;
+  let chunkSize;
   if (cpuTime < 500) {
     numWorkers = navigator.hardwareConcurrency || 4;
-    chunkSize = Math.ceil(fileSize / numWorkers);
   } else {
     numWorkers = 2;
-    chunkSize = Math.ceil(fileSize / numWorkers);
   }
+  chunkSize = Math.ceil(fileSize / numWorkers);
   return { numWorkers, chunkSize };
 }
 
 function processFile(file, numWorkers, chunkSize) {
   const sliceSize = Math.ceil(file.size / numWorkers);
   let offset = 0;
-  let completed = 0;
 
   for (let i = 0; i < numWorkers; i++) {
     const slice = file.slice(offset, offset + sliceSize);
@@ -125,8 +125,8 @@ function handleWorkerError(worker, slice, taskId, error) {
       alert("File không đúng định dạng encoding. Vui lòng kiểm tra và thử lại.");
       break;
     case 'BufferOverflow':
-      if (retries < 3) {
-        console.log(`Buffer overflow on task ${task.id}. Retrying with smaller chunks.`);
+      if (retriesCount[taskId] < 3) {
+        console.log(`Buffer overflow on task ${taskId}. Retrying with smaller chunks.`);
         task.chunkSize /= 2;  // Giảm kích thước chunk
         retryTask(worker, slice, taskId);
       } else {
@@ -134,12 +134,12 @@ function handleWorkerError(worker, slice, taskId, error) {
       }
       break;
     case 'ProgrammaticError':
-      console.error(`Programmatic error in worker. Task ${task.id} will be retried.`);
+      console.error(`Programmatic error in worker. Task ${taskId} will be retried.`);
       retryTask(worker, slice, taskId);
       break;
     default:
-      if (retries < 3) {
-        console.log(`Unknown error. Retrying task ${task.id}.`);
+      if (retriesCount[taskId] < 3) {
+        console.log(`Unknown error. Retrying task ${taskId}.`);
         retryTask(worker, slice, taskId);
       } else {
         alert("Task không thể hoàn thành sau 3 lần thử. Vui lòng thử lại.");
@@ -152,7 +152,7 @@ function retryTask(worker, slice, taskId) {
     alert("Không thể xử lý task này sau nhiều lần thử. Vui lòng kiểm tra lại file hoặc liên hệ hỗ trợ.");
     return;
   }
-  console.log(`Retrying task ${task.id} on worker. Attempt #${retries + 1}`);
+  console.log(`Retrying task ${taskId} on worker. Attempt #${retriesCount[taskId] + 1}`);
 
   retriesCount[taskId]++;
   startWorker(slice, taskId);
