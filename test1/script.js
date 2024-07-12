@@ -2,6 +2,7 @@ let isPerformanceChecked = false;
 let numWorkers = 0;
 let workerTasks = {};
 let results = [];
+let globalWordCounts = {};
 let numWorkerTasksCompleted = 0;
 let retriesCount = {};
 
@@ -90,18 +91,29 @@ function calculateOptimalParameters(fileSize, performance) {
 }
 
 function processFile(file, numWorkers, chunkSize) {
-  let offset = 0;
+  const reader = new FileReader();
+  reader.onload = function() {
+    const text = reader.result;
+    let offsets = [0];
 
-  for (let i = 0; i < numWorkers; i++) {
-    const slice = file.slice(offset, offset + chunkSize);
-    const taskId = 'task-' + i;  // Tạo một ID duy nhất cho mỗi task
+    for (let i = 1; i < numWorkers; i++) {
+      let offset = Math.min(chunkSize * i, text.length);
+      // Điều chỉnh để không cắt ngang từ
+      while (offset < text.length && !/\s|\.|,/.test(text[offset])) {
+        offset++;
+      }
+      offsets.push(offset);
+    }
+    offsets.push(text.length);
 
-    retriesCount[taskId] = 0;  // Khởi tạo số lần thử lại là 0
-
-    startWorker(slice, taskId);
-
-    offset += chunkSize;
-  }
+    for (let i = 0; i < numWorkers; i++) {
+      const slice = text.substring(offsets[i], offsets[i+1]);
+      const taskId = 'task-' + i;
+      startWorker(slice, taskId);
+      retriesCount[taskId] = 0;  // Khởi tạo số lần thử lại là 0
+    }
+  };
+  reader.readAsText(file);
 }
 
 function startWorker(slice, taskId) {
