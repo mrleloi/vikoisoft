@@ -141,9 +141,9 @@ function handleWorkerMessage(event, taskId) {
     console.log('Task #' + taskId + ' result: ', event.data.result);
     results[taskId] = event.data.result;
     numWorkerTasksCompleted++;
-    if (numWorkerTasksCompleted === numWorkers) {
+    if (numWorkerTasksCompleted == numWorkers) {
       let resultString = Object.keys(results).sort().map(key => `${results[key]}`).join('+');
-      document.getElementById('output').innerText = 'All slices processed. Data: ' + results.join(', ');
+      document.getElementById('output').innerText = 'All slices processed. Data: ' + resultString;
     }
     // delete workerTasks[taskId];
     delete retriesCount[taskId];  // Xóa bỏ tracking khi đã hết số lần thử
@@ -193,7 +193,7 @@ function retryTask(taskId) {
 
 function startHeartbeat(worker, taskId, interval) {
   const heartbeat = setInterval(() => {
-    worker.postMessage('heartbeat');
+    worker.postMessage({type: 'heartbeat', action: 'ping'});
     if (Date.now() - workerTasks[taskId].lastAlive > interval * 2) {
       console.log('Worker is dead or not responding.');
       clearInterval(heartbeat);
@@ -203,7 +203,7 @@ function startHeartbeat(worker, taskId, interval) {
   }, interval);
 
   worker.onmessage = function(event) {
-    if (event.data.type === 'heartbeat') {
+    if (event.data.type === 'heartbeat' && event.data.action === 'pong') {
       workerTasks[taskId].lastAlive = Date.now();
     } else {
       handleWorkerMessage(event, taskId);

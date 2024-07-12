@@ -1,7 +1,7 @@
 self.addEventListener('message', function(e) {
-    if (e.data.type === 'heartbeat') {
+    if (e.data.type === 'heartbeat' && e.data.action === 'ping') {
         // Phản hồi tín hiệu "alive" nếu nhận được yêu cầu heartbeat
-        self.postMessage({type: 'heartbeat', status: 'alive'});
+        self.postMessage({type: 'heartbeat', action: 'pong'});
     } else if (e.data.type === 'slice') {
         const arrayBuffer = e.data.buffer;
         const taskId = e.data.taskId;
