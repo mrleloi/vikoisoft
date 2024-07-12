@@ -106,49 +106,47 @@ function processFile(file, numWorkers, chunkSize) {
 
 function startWorker(slice, taskId) {
   const worker = new Worker('worker.js');
-  const workerId = worker;
 
-  // Lưu trữ dữ liệu task
-  workerTasks[workerId] = { slice, taskId, worker };
+  // Đọc slice như một ArrayBuffer và sau đó gửi nó đến worker
+  slice.arrayBuffer().then(arrayBuffer => {
+    worker.postMessage({ buffer: arrayBuffer, taskId }, [arrayBuffer]); // Sử dụng arrayBuffer như transferable object
 
-  worker.postMessage({ slice, taskId }); // Gửi slice và taskId tới worker
-  console.log({ slice, taskId });
+    worker.onmessage = function(event) {
+      console.log('message from #' + taskId);
+      console.log(event);
+      if (event.data.error) {
+        handleWorkerError(event.data.error, taskId);
+      } else {
+        handleWorkerMessage(event, taskId);
+      }
+    };
 
-  startHeartbeat(worker, 5000);  // Kiểm tra tình trạng của worker mỗi 5000 ms
+    worker.onerror = function(error) {
+      console.log('error from #' + taskId);
+      console.log(error);
+      handleWorkerError(error, taskId);
+    };
 
-  worker.onmessage = function(event) {
-    // Xử lý thông điệp từ worker
-    console.log('message from '+ workerId);
-    console.log(event);
-    handleWorkerMessage(event, workerId);
-  };
-
-  worker.onerror = function(error) {
-    // Xử lý lỗi và retry nếu cần
-    console.log('error from '+ workerId);
-    console.log(error);
-    handleWorkerError(error, workerId);
-  };
+    startHeartbeat(worker, 5000);  // Kiểm tra tình trạng của worker mỗi 5000 ms
+  }).catch(error => {
+    console.error("Error reading the slice as an ArrayBuffer:", error);
+  });
 }
 
-function handleWorkerMessage(event, workerId) {
+function handleWorkerMessage(event, taskId) {
   if (event.data.result) {
-    const taskDetails = workerTasks[workerId];
-
-    console.log('Task #' + taskDetails.taskId + ' said: ', event.data.result);
-    results[taskDetails.taskId] = event.data.result;
+    console.log('Task #' + taskId + ' said: ', event.data.result);
+    results[taskId] = event.data.result;
     numWorkerTasksCompleted++;
     if (numWorkerTasksCompleted === numWorkers) {
       document.getElementById('output').innerText = 'All slices processed. Data: ' + results.join(', ');
     }
-    delete workerTasks[workerId];
+    delete workerTasks[taskId];
     delete retriesCount[taskId];  // Xóa bỏ tracking khi đã hết số lần thử
   }
 }
 
-function handleWorkerError(error, workerId) {
-  const taskDetails = workerTasks[workerId];
-  let taskId = taskDetails.taskId;
+function handleWorkerError(error, taskId) {
   console.error(`Error on worker: ${error.message}`);
 
   switch (error.name) {
@@ -159,27 +157,27 @@ function handleWorkerError(error, workerId) {
       if (retriesCount[taskId] < 3) {
         console.log(`Buffer overflow on task ${taskId}. Retrying with smaller chunks.`);
         task.chunkSize /= 2;  // Giảm kích thước chunk
-        retryTask(workerId);
+        retryTask(taskId);
       } else {
         alert("Không thể xử lý file do kích thước quá lớn.");
       }
       break;
     case 'ProgrammaticError':
       console.error(`Programmatic error in worker. Task ${taskId} will be retried.`);
-      retryTask(workerId);
+      retryTask(taskId);
       break;
     default:
       if (retriesCount[taskId] < 3) {
         console.log(`Unknown error. Retrying task ${taskId}.`);
-        retryTask(workerId);
+        retryTask(taskId);
       } else {
         alert("Task không thể hoàn thành sau 3 lần thử. Vui lòng thử lại.");
       }
   }
 }
 
-function retryTask(workerId) {
-  const taskDetails = workerTasks[workerId];
+function retryTask(taskId) {
+  const taskDetails = workerTasks[taskId];
   if (taskDetails && retriesCount[taskDetails.taskId] < 3) {
     retriesCount[taskDetails.taskId]++;
     console.log(`Retrying task ${taskDetails.taskId}. Attempt #${retriesCount[taskDetails.taskId]}`);
@@ -190,22 +188,22 @@ function retryTask(workerId) {
 }
 
 function startHeartbeat(worker, interval) {
-  const workerId = worker;
+  const taskId = worker;
   const heartbeat = setInterval(() => {
     worker.postMessage('heartbeat');
-    if (Date.now() - workerTasks[workerId].lastAlive > interval * 2) {
+    if (Date.now() - workerTasks[taskId].lastAlive > interval * 2) {
       console.log('Worker is dead or not responding.');
       clearInterval(heartbeat);
       worker.terminate();
-      retryTask(workerId);  // Sử dụng workerId để truy cập dữ liệu và thử lại task
+      retryTask(taskId);  // Sử dụng taskId để truy cập dữ liệu và thử lại task
     }
   }, interval);
 
   worker.onmessage = function(e) {
     if (e.data === 'alive') {
-      workerTasks[workerId].lastAlive = Date.now();
+      workerTasks[taskId].lastAlive = Date.now();
     } else {
-      handleWorkerMessage(e, workerId);
+      handleWorkerMessage(e, taskId);
     }
   };
 }
