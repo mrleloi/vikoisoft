@@ -47,6 +47,7 @@ function processFileEvent(event, isInputChange = false) {
   else {
     let resultTestPerformance = localStorage.getItem('resultTestPerformance');
     if (resultTestPerformance) {
+      resultTestPerformance = JSON.parse(resultTestPerformance);
       const { numWorkers, chunkSize } = calculateOptimalParameters(file.size, resultTestPerformance);
       processFile(file, numWorkers, chunkSize);
     }
@@ -65,7 +66,7 @@ function performAllTests() {
       const networkSpeed = true;
       // const networkSpeed = await testNetworkSpeed(); // Bài kiểm tra tốc độ mạng
       let result = { cpuTime, memoryUsage, networkSpeed };
-      localStorage.setItem('resultTestPerformance', result);
+      localStorage.setItem('resultTestPerformance', JSON.stringify(result));
       isPerformanceChecked = true;
       resolve(result);
     } catch (err) {
