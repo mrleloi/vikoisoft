@@ -138,13 +138,14 @@ function startWorker(slice, taskId) {
 
 function handleWorkerMessage(event, taskId) {
   if (event.data.type === 'done' && event.data.result) {
-    console.log('Task #' + taskId + ' said: ', event.data.result);
+    console.log('Task #' + taskId + ' result: ', event.data.result);
     results[taskId] = event.data.result;
     numWorkerTasksCompleted++;
     if (numWorkerTasksCompleted === numWorkers) {
+      let resultString = Object.keys(results).sort().map(key => `${results[key]}`).join('+');
       document.getElementById('output').innerText = 'All slices processed. Data: ' + results.join(', ');
     }
-    delete workerTasks[taskId];
+    // delete workerTasks[taskId];
     delete retriesCount[taskId];  // Xóa bỏ tracking khi đã hết số lần thử
   }
 }
