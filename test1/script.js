@@ -1,5 +1,6 @@
 let retriesCount = {};
 let isPerformanceChecked = false;
+let results = [];
 
 document.getElementById('drop_zone').addEventListener('dragover', function(event) {
   event.stopPropagation();
@@ -76,7 +77,6 @@ function processFile(file, numWorkers, chunkSize) {
   const sliceSize = Math.ceil(file.size / numWorkers);
   let offset = 0;
   let completed = 0;
-  const results = [];
 
   for (let i = 0; i < numWorkers; i++) {
     const slice = file.slice(offset, offset + sliceSize);
