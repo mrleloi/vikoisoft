@@ -27,7 +27,7 @@ function processSlice(arrayBuffer) {
     console.log(text);
     const words = text.trim();
     let wordCounts = 0;
-    if (words.length > 0) {
+    if (words) {
         wordCounts = words.split(/\s+/).length;
     }
     return wordCounts;
