@@ -1,8 +1,17 @@
-let retriesCount = {};
 let isPerformanceChecked = false;
-let results = [];
-let completed = 0;
 let numWorkers = 0;
+let workerTasks = {};
+let results = [];
+let numWorkerTasksCompleted = 0;
+let retriesCount = {};
+
+window.onload = () => {
+  if (!localStorage.getItem('resultTestPerformance')) {
+    performAllTests();
+  } else {
+    isPerformanceChecked = true; // Đánh dấu là đã kiểm tra nếu kết quả đã lưu trong localStorage
+  }
+};
 
 document.getElementById('drop_zone').addEventListener('dragover', function(event) {
   event.stopPropagation();
@@ -15,31 +24,37 @@ document.getElementById('file_input').addEventListener('change', function(event)
   processFileEvent(event, true);
 });
 
-window.onload = () => {
-  if (!localStorage.getItem('cpuPerformance')) {
-    performAllTests();
-  } else {
-    isPerformanceChecked = true; // Đánh dấu là đã kiểm tra nếu kết quả đã lưu trong localStorage
-  }
-};
-
 function processFileEvent(event, isInputChange = false) {
   event.stopPropagation();
   event.preventDefault();
-  if (!isPerformanceChecked) {
-    document.getElementById('output').innerText = 'Please wait while the system checks your computer\'s performance.';
-    return;
-  }
+
+  numWorkerTasksCompleted = 0;
 
   const file = isInputChange ? event.target.files[0] : event.dataTransfer.files[0];
   if (!file || !file.name.endsWith('.txt')) {
     document.getElementById('output').innerText = 'Error: Only .txt files are accepted';
     return;
   }
-  performAllTests().then(performance => {
-    const { numWorkers, chunkSize } = calculateOptimalParameters(file.size, performance);
-    processFile(file, numWorkers, chunkSize);
-  }).catch(err => document.getElementById('output').innerText = 'Performance test failed: ' + err.message);
+  if (!isPerformanceChecked) {
+    document.getElementById('output').innerText = 'Please wait while the system checks your computer\'s performance.';
+
+    performAllTests().then(performance => {
+      const { numWorkers, chunkSize } = calculateOptimalParameters(file.size, performance);
+      processFile(file, numWorkers, chunkSize);
+    }).catch(err => document.getElementById('output').innerText = 'Performance test failed: ' + err.message);
+    return;
+  }
+  else {
+    let resultTestPerformance = localStorage.getItem('resultTestPerformance');
+    if (resultTestPerformance) {
+      const { numWorkers, chunkSize } = calculateOptimalParameters(file.size, resultTestPerformance);
+      processFile(file, numWorkers, chunkSize);
+    }
+    else {
+      document.getElementById('output').innerText = 'Performance test failed.';
+      return;
+    }
+  }
 }
 
 function performAllTests() {
@@ -49,10 +64,10 @@ function performAllTests() {
       const memoryUsage = await memoryTest(); // Bài kiểm tra bộ nhớ
       const networkSpeed = true;
       // const networkSpeed = await testNetworkSpeed(); // Bài kiểm tra tốc độ mạng
+      let result = { cpuTime, memoryUsage, networkSpeed };
+      localStorage.setItem('resultTestPerformance', result);
       isPerformanceChecked = true;
-      console.log(cpuTime);
-      console.log(memoryUsage);
-      resolve({ cpuTime, memoryUsage, networkSpeed });
+      resolve(result);
     } catch (err) {
       isPerformanceChecked = true;
       reject(err);
@@ -61,7 +76,6 @@ function performAllTests() {
 }
 
 function calculateOptimalParameters(fileSize, performance) {
-  console.log(fileSize);
   let cpuTime = performance.cpuTime;
   let memoryUsage = performance.memoryUsage;
   let chunkSize;
@@ -75,49 +89,60 @@ function calculateOptimalParameters(fileSize, performance) {
 }
 
 function processFile(file, numWorkers, chunkSize) {
-  const sliceSize = Math.ceil(file.size / numWorkers);
   let offset = 0;
 
   for (let i = 0; i < numWorkers; i++) {
-    const slice = file.slice(offset, offset + sliceSize);
+    const slice = file.slice(offset, offset + chunkSize);
     const taskId = 'task-' + i;  // Tạo một ID duy nhất cho mỗi task
 
     retriesCount[taskId] = 0;  // Khởi tạo số lần thử lại là 0
 
     startWorker(slice, taskId);
 
-    offset += sliceSize;
+    offset += chunkSize;
   }
 }
 
 function startWorker(slice, taskId) {
   const worker = new Worker('worker.js');
+  const workerId = worker;
+
+  // Lưu trữ dữ liệu task
+  workerTasks[workerId] = { slice, taskId, worker };
+
   worker.postMessage({ slice, taskId }); // Gửi slice và taskId tới worker
 
   startHeartbeat(worker, 5000);  // Kiểm tra tình trạng của worker mỗi 5000 ms
 
   worker.onmessage = function(event) {
     // Xử lý thông điệp từ worker
-    handleWorkerMessage(event, taskId);
+    handleWorkerMessage(event, workerId);
   };
 
   worker.onerror = function(error) {
     // Xử lý lỗi và retry nếu cần
-    handleWorkerError(worker, slice, taskId, retriesCount[taskId]);
+    handleWorkerError(error, workerId);
   };
 }
 
-function handleWorkerMessage(event, taskId) {
-  console.log('Worker ' + event.data.index + ' said: ', event.data.result);
-  results[event.data.index] = event.data.result;
-  completed++;
-  if (completed === numWorkers) {
-    document.getElementById('output').innerText = 'All slices processed. Data: ' + results.join(', ');
+function handleWorkerMessage(event, workerId) {
+  if (event.data.result) {
+    const taskDetails = workerTasks[workerId];
+
+    console.log('Task #' + taskDetails.taskId + ' said: ', event.data.result);
+    results[taskDetails.taskId] = event.data.result;
+    numWorkerTasksCompleted++;
+    if (numWorkerTasksCompleted === numWorkers) {
+      document.getElementById('output').innerText = 'All slices processed. Data: ' + results.join(', ');
+    }
+    delete workerTasks[workerId];
+    delete retriesCount[taskId];  // Xóa bỏ tracking khi đã hết số lần thử
   }
-  delete retriesCount[taskId];  // Xóa bỏ tracking khi đã hết số lần thử
 }
 
-function handleWorkerError(worker, slice, taskId, error) {
+function handleWorkerError(error, workerId) {
+  const taskDetails = workerTasks[workerId];
+  let taskId = taskDetails.taskId;
   console.error(`Error on worker: ${error.message}`);
 
   switch (error.name) {
@@ -128,55 +153,53 @@ function handleWorkerError(worker, slice, taskId, error) {
       if (retriesCount[taskId] < 3) {
         console.log(`Buffer overflow on task ${taskId}. Retrying with smaller chunks.`);
         task.chunkSize /= 2;  // Giảm kích thước chunk
-        retryTask(worker, slice, taskId);
+        retryTask(workerId);
       } else {
         alert("Không thể xử lý file do kích thước quá lớn.");
       }
       break;
     case 'ProgrammaticError':
       console.error(`Programmatic error in worker. Task ${taskId} will be retried.`);
-      retryTask(worker, slice, taskId);
+      retryTask(workerId);
       break;
     default:
       if (retriesCount[taskId] < 3) {
         console.log(`Unknown error. Retrying task ${taskId}.`);
-        retryTask(worker, slice, taskId);
+        retryTask(workerId);
       } else {
         alert("Task không thể hoàn thành sau 3 lần thử. Vui lòng thử lại.");
       }
   }
 }
 
-function retryTask(worker, slice, taskId) {
-  if (retriesCount[taskId] > 3) {
-    alert("Không thể xử lý task này sau nhiều lần thử. Vui lòng kiểm tra lại file hoặc liên hệ hỗ trợ.");
-    return;
+function retryTask(workerId) {
+  const taskDetails = workerTasks[workerId];
+  if (taskDetails && retriesCount[taskDetails.taskId] < 3) {
+    retriesCount[taskDetails.taskId]++;
+    console.log(`Retrying task ${taskDetails.taskId}. Attempt #${retriesCount[taskDetails.taskId]}`);
+    startWorker(taskDetails.slice, taskDetails.taskId);
+  } else {
+    console.log('Failed after 3 retries for task ' + taskDetails.taskId);
   }
-  console.log(`Retrying task ${taskId} on worker. Attempt #${retriesCount[taskId] + 1}`);
-
-  retriesCount[taskId]++;
-  startWorker(slice, taskId);
 }
 
 function startHeartbeat(worker, interval) {
-  let lastAlive = Date.now();
+  const workerId = worker;
   const heartbeat = setInterval(() => {
     worker.postMessage('heartbeat');
-    if (Date.now() - lastAlive > interval * 2) {
+    if (Date.now() - workerTasks[workerId].lastAlive > interval * 2) {
       console.log('Worker is dead or not responding.');
       clearInterval(heartbeat);
       worker.terminate();
-      retryTask(worker, worker.taskId); // Ensure this is correctly managed
+      retryTask(workerId);  // Sử dụng workerId để truy cập dữ liệu và thử lại task
     }
   }, interval);
 
   worker.onmessage = function(e) {
     if (e.data === 'alive') {
-      lastAlive = Date.now(); // Cập nhật thời điểm nhận tín hiệu sống
-    }
-    // Handle other messages
-    else if (e.data.result) {
-      handleResult(e.data);
+      workerTasks[workerId].lastAlive = Date.now();
+    } else {
+      handleWorkerMessage(e, workerId);
     }
   };
 }
