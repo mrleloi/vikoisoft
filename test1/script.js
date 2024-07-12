@@ -107,7 +107,7 @@ function processFile(file, numWorkers, chunkSize) {
     offsets.push(text.length);
 
     for (let i = 0; i < numWorkers; i++) {
-      const slice = text.substring(offsets[i], offsets[i+1]);
+      const slice = file.slice(offsets[i], offsets[i+1]);
       const taskId = 'task-' + i;
       startWorker(slice, taskId);
       retriesCount[taskId] = 0;  // Khởi tạo số lần thử lại là 0
