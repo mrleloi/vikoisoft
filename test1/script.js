@@ -109,12 +109,12 @@ function startWorker(slice, taskId) {
 
   // Đọc slice như một ArrayBuffer và sau đó gửi nó đến worker
   slice.arrayBuffer().then(arrayBuffer => {
-    worker.postMessage({ buffer: arrayBuffer, taskId }, [arrayBuffer]); // Sử dụng arrayBuffer như transferable object
+    worker.postMessage({ type: 'slice', buffer: arrayBuffer, taskId }, [arrayBuffer]); // Sử dụng arrayBuffer như transferable object
 
     worker.onmessage = function(event) {
       console.log('message from #' + taskId);
       console.log(event);
-      if (event.data.error) {
+      if (event.data.type === 'error') {
         handleWorkerError(event.data.error, taskId);
       } else {
         handleWorkerMessage(event, taskId);
@@ -127,14 +127,14 @@ function startWorker(slice, taskId) {
       handleWorkerError(error, taskId);
     };
 
-    startHeartbeat(worker, 5000);  // Kiểm tra tình trạng của worker mỗi 5000 ms
+    startHeartbeat(worker, taskId, 5000);  // Kiểm tra tình trạng của worker mỗi 5000 ms
   }).catch(error => {
     console.error("Error reading the slice as an ArrayBuffer:", error);
   });
 }
 
 function handleWorkerMessage(event, taskId) {
-  if (event.data.result) {
+  if (event.data.type === 'done' && event.data.result) {
     console.log('Task #' + taskId + ' said: ', event.data.result);
     results[taskId] = event.data.result;
     numWorkerTasksCompleted++;
@@ -187,8 +187,7 @@ function retryTask(taskId) {
   }
 }
 
-function startHeartbeat(worker, interval) {
-  const taskId = worker;
+function startHeartbeat(worker, taskId, interval) {
   const heartbeat = setInterval(() => {
     worker.postMessage('heartbeat');
     if (Date.now() - workerTasks[taskId].lastAlive > interval * 2) {
@@ -199,8 +198,8 @@ function startHeartbeat(worker, interval) {
     }
   }, interval);
 
-  worker.onmessage = function(e) {
-    if (e.data === 'alive') {
+  worker.onmessage = function(event) {
+    if (event.data.type === 'heartbeat') {
       workerTasks[taskId].lastAlive = Date.now();
     } else {
       handleWorkerMessage(e, taskId);
