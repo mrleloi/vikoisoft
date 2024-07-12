@@ -111,6 +111,9 @@ function startWorker(slice, taskId) {
   slice.arrayBuffer().then(arrayBuffer => {
     worker.postMessage({ type: 'slice', buffer: arrayBuffer, taskId }, [arrayBuffer]); // Sử dụng arrayBuffer như transferable object
 
+    // Lưu thông tin task vào bộ nhớ để dùng cho retry và các tác vụ khác
+    workerTasks[taskId] = {slice: slice, taskId, lastAlive: Date.now()};
+
     worker.onmessage = function(event) {
       console.log('message from #' + taskId);
       console.log(event);
@@ -202,7 +205,7 @@ function startHeartbeat(worker, taskId, interval) {
     if (event.data.type === 'heartbeat') {
       workerTasks[taskId].lastAlive = Date.now();
     } else {
-      handleWorkerMessage(e, taskId);
+      handleWorkerMessage(event, taskId);
     }
   };
 }
