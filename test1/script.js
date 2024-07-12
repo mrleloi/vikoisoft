@@ -1,4 +1,5 @@
 let retriesCount = {};
+let isPerformanceChecked = false;
 
 document.getElementById('drop_zone').addEventListener('dragover', function(event) {
   event.stopPropagation();
@@ -11,30 +12,55 @@ document.getElementById('file_input').addEventListener('change', function(event)
   processFileEvent(event, true);
 });
 
+window.onload = () => {
+  if (!localStorage.getItem('cpuPerformance')) {
+    performAllTests();
+  } else {
+    isPerformanceChecked = true; // Đánh dấu là đã kiểm tra nếu kết quả đã lưu trong localStorage
+  }
+};
+
 function processFileEvent(event, isInputChange = false) {
   event.stopPropagation();
   event.preventDefault();
+  if (!isPerformanceChecked) {
+    document.getElementById('output').innerText = 'Please wait while the system checks your computer\'s performance.';
+    return;
+  }
+
   const file = isInputChange ? event.target.files[0] : event.dataTransfer.files[0];
   if (!file || !file.name.endsWith('.txt')) {
     document.getElementById('output').innerText = 'Error: Only .txt files are accepted';
     return;
   }
   performAllTests().then(performance => {
-    const { numWorkers, chunkSize } = calculateOptimalParameters(file.size, performance.cpuTime);
+    const { numWorkers, chunkSize } = calculateOptimalParameters(file.size, performance);
     processFile(file, numWorkers, chunkSize);
   }).catch(err => document.getElementById('output').innerText = 'Performance test failed: ' + err.message);
 }
 
 function performAllTests() {
-  return new Promise((resolve, reject) => {
-    const cpuTime = cpuTest(1000000); // Simulated CPU test
-    const memoryUsage = memoryTest(); // Simulated memory usage test
-    const networkSpeed = testNetworkSpeed(); // Simulated network speed test
-    resolve({ cpuTime, memoryUsage, networkSpeed });
+  return new Promise(async (resolve, reject) => {
+    try {
+      const cpuTime = await cpuTest(1000000); // Bài kiểm tra CPU
+      const memoryUsage = await memoryTest(); // Bài kiểm tra bộ nhớ
+      const networkSpeed = true;
+      // const networkSpeed = await testNetworkSpeed(); // Bài kiểm tra tốc độ mạng
+      isPerformanceChecked = true;
+      console.log(cpuTime);
+      console.log(memoryUsage);
+      resolve({ cpuTime, memoryUsage, networkSpeed });
+    } catch (err) {
+      isPerformanceChecked = true;
+      reject(err);
+    }
   });
 }
 
-function calculateOptimalParameters(fileSize, cpuTime) {
+function calculateOptimalParameters(fileSize, performance) {
+  console.log(fileSize);
+  let cpuTime = performance.cpuTime;
+  let memoryUsage = performance.memoryUsage;
   let numWorkers, chunkSize;
   if (cpuTime < 500) {
     numWorkers = navigator.hardwareConcurrency || 4;
@@ -155,8 +181,7 @@ function startHeartbeat(worker, interval) {
   };
 }
 
-
-function cpuTest(iterations) {
+async function cpuTest(iterations) {
   const startTime = performance.now();
   let sum = 0;
   for (let i = 0; i < iterations; i++) {
@@ -166,7 +191,7 @@ function cpuTest(iterations) {
   return endTime - startTime; // Trả về thời gian để hoàn thành bài test
 }
 
-function memoryTest() {
+async function memoryTest() {
   let memoryUsageStart = window.performance.memory.usedJSHeapSize;
   let objects = [];
   for (let i = 0; i < 100000; i++) {
@@ -178,9 +203,9 @@ function memoryTest() {
 
 function testNetworkSpeed() {
   return new Promise((resolve, reject) => {
-    const downloadSize = 5000000; // bytes
+    const downloadSize = '5MB';
     const startTime = (new Date()).getTime();
-    fetch('https://your-server.com/large-file?size=' + downloadSize)
+    fetch('./resources/test_performance_network_file_' + downloadSize)
         .then(response => response.blob())
         .then(data => {
           const endTime = (new Date()).getTime();
