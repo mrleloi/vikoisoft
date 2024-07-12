@@ -112,16 +112,21 @@ function startWorker(slice, taskId) {
   workerTasks[workerId] = { slice, taskId, worker };
 
   worker.postMessage({ slice, taskId }); // Gửi slice và taskId tới worker
+  console.log({ slice, taskId });
 
   startHeartbeat(worker, 5000);  // Kiểm tra tình trạng của worker mỗi 5000 ms
 
   worker.onmessage = function(event) {
     // Xử lý thông điệp từ worker
+    console.log('message from '+ workerId);
+    console.log(event);
     handleWorkerMessage(event, workerId);
   };
 
   worker.onerror = function(error) {
     // Xử lý lỗi và retry nếu cần
+    console.log('error from '+ workerId);
+    console.log(error);
     handleWorkerError(error, workerId);
   };
 }
