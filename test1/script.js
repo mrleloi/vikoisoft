@@ -28,6 +28,8 @@ function processFileEvent(event, isInputChange = false) {
   event.stopPropagation();
   event.preventDefault();
 
+  document.getElementById('output').innerHTML = '';
+
   numWorkerTasksCompleted = 0;
 
   const file = isInputChange ? event.target.files[0] : event.dataTransfer.files[0];
@@ -126,8 +128,6 @@ function startWorker(slice, taskId) {
     workerTasks[taskId] = {slice: slice, taskId, lastAlive: Date.now()};
 
     worker.onmessage = function(event) {
-      console.log('message from #' + taskId);
-      console.log(event);
       if (event.data.type === 'error') {
         handleWorkerError(event.data.error, taskId);
       } else {
@@ -136,8 +136,6 @@ function startWorker(slice, taskId) {
     };
 
     worker.onerror = function(error) {
-      console.log('error from #' + taskId);
-      console.log(error);
       handleWorkerError(error, taskId);
     };
 
@@ -149,7 +147,6 @@ function startWorker(slice, taskId) {
 
 function handleWorkerMessage(event, taskId) {
   if (event.data.type === 'done') {
-    console.log('Task #' + taskId + ' result: ', event.data.result);
     numWorkerTasksCompleted++;
     Object.keys(event.data.result).forEach(word => {
       globalWordCounts[word] = (globalWordCounts[word] || 0) + event.data.result[word];
