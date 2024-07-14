@@ -1,0 +1,64 @@
+<h3>M&ocirc; h&igrave;nh ERD</h3>
+<ol>
+<li>
+<p><strong>Users</strong></p>
+<ul>
+<li><strong>user_id</strong> (Kh&oacute;a ch&iacute;nh)</li>
+<li><strong>name</strong> (T&ecirc;n người d&ugrave;ng)</li>
+<li><strong>birth_date</strong> (Ng&agrave;y sinh)</li>
+<li><strong>phone_number</strong> (Số điện thoại)</li>
+</ul>
+</li>
+<li>
+<p><strong>Calls</strong></p>
+<ul>
+<li><strong>call_id</strong> (Kh&oacute;a ch&iacute;nh)</li>
+<li><strong>caller_id</strong> (Kh&oacute;a ngoại, li&ecirc;n kết với <code>Users.phone_number</code>)</li>
+<li><strong>callee_id</strong> (Kh&oacute;a ngoại, li&ecirc;n kết với <code>Users.phone_number</code>)</li>
+<li><strong>duration</strong> (Thời lượng cuộc gọi, đơn vị gi&acirc;y)</li>
+<li><strong>timestamp</strong> (Thời điểm thực hiện cuộc gọi)</li>
+</ul>
+</li>
+</ol>
+<p>Mối quan hệ giữa <code>Users</code> v&agrave; <code>Calls</code> l&agrave; mối quan hệ "một-nhiều", v&igrave; mỗi người d&ugrave;ng c&oacute; thể thực hiện nhiều cuộc gọi.</p>
+<p>
+<img src="erd.png" width="551" height="226" alt="Hình ảnh ERD diagram, đặt trong cùng folder test4">
+</p>
+<h3>SQL Queries</h3>
+<h4>1. Truy vấn top 3 user c&oacute; tổng thời lượng cuộc gọi lớn nhất trong th&aacute;ng vừa rồi</h4>
+<div class="dark bg-gray-950 rounded-md border-[0.5px] border-token-border-medium">
+<div class="overflow-y-auto p-4" dir="ltr">
+<p>SELECT u.user_id, u.name, SUM(c.duration) AS total_duration</p>
+<p>FROM Users u</p>
+<p>JOIN Calls c ON u.phone_number = c.caller_id OR u.phone_number = c.callee_id</p>
+<p>WHERE MONTH(c.timestamp) = MONTH(CURRENT_DATE - INTERVAL 1 MONTH)</p>
+<p>&nbsp; AND YEAR(c.timestamp) = YEAR(CURRENT_DATE - INTERVAL 1 MONTH)</p>
+<p>GROUP BY u.user_id</p>
+<p>ORDER BY total_duration DESC</p>
+<p>LIMIT 3;</p>
+</div>
+</div>
+<h4>2. Truy vấn ra những user c&oacute; tổng thời lượng cuộc gọi lớn thứ hai</h4>
+<p>Để thực hiện truy vấn n&agrave;y, ch&uacute;ng ta cần x&aacute;c định gi&aacute; trị thứ hai lớn nhất v&agrave; sau đ&oacute; t&igrave;m người d&ugrave;ng c&oacute; tổng thời lượng cuộc gọi bằng gi&aacute; trị đ&oacute;.</p>
+<div class="dark bg-gray-950 rounded-md border-[0.5px] border-token-border-medium">
+<div class="overflow-y-auto p-4" dir="ltr">
+<p>SELECT u.user_id, u.name, SUM(c.duration) AS total_duration</p>
+<p>FROM Users u</p>
+<p>JOIN Calls c ON u.phone_number = c.caller_id OR u.phone_number = c.callee_id</p>
+<p>GROUP BY u.user_id</p>
+<p>HAVING total_duration = (</p>
+<p>&nbsp; SELECT DISTINCT total_duration</p>
+<p>&nbsp; FROM (</p>
+<p>&nbsp;&nbsp;&nbsp; SELECT SUM(c.duration) AS total_duration</p>
+<p>&nbsp;&nbsp;&nbsp; FROM Calls c</p>
+<p>&nbsp;&nbsp;&nbsp; JOIN Users u ON c.caller_id = u.phone_number OR c.callee_id = u.phone_number</p>
+<p>&nbsp;&nbsp;&nbsp; GROUP BY u.user_id</p>
+<p>&nbsp;&nbsp;&nbsp; ORDER BY total_duration DESC</p>
+<p>&nbsp;&nbsp;&nbsp; LIMIT 1 OFFSET 1</p>
+<p>&nbsp; ) AS second_highest</p>
+<p>)</p>
+<p>ORDER BY total_duration DESC;</p>
+</div>
+</div>
+<p>&nbsp;</p>
+<div id="gtx-trans" style="position: absolute; left: 0px; top: 291.037px;">&nbsp;</div>

@@ -1,16 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>File Processing App</title>
-<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test 1 - Text File Processing App</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<input type="file" id="file_input" accept=".txt">
-<div id="drop_zone">Or drag and drop a text file here</div>
-<div id="output"></div>
-<script src="script.js"></script>
-<script>
-</script>
+    <p><strong>B&agrave;i 1:</strong><strong> Tạo 1 Drag&amp;Drop container đọc file văn bản (.txt) người d&ugrave;ng k&eacute;o thả v&agrave;o v&agrave; thống k&ecirc; ra tổng số từ kh&aacute;c nhau xuất hiện trong file văn bản v&agrave; 3 từ được lặp lại nhiều nhất c&ugrave;ng số lần lặp lại của 3 từ đ&oacute;.</strong> (Lưu &yacute; kh&ocirc;ng ph&acirc;n biệt chữ hoa hay chữ thường)</p>
+    <p>File văn bản chỉ sử dụng k&yacute; tự alphabet, kh&ocirc;ng chứa số.</p>
+    <p>File văn bản chỉ chứa c&aacute;c k&yacute; tự đặc biệt sau:</p>
+    <ul>
+        <li>chấm (.)</li>
+        <li>phẩy (,)</li>
+        <li>khoảng trắng ( )</li>
+    </ul>
+    <p><strong>Y&ecirc;u cầu:</strong></p>
+    <ul>
+        <li>Nếu kh&ocirc;ng phải file c&oacute; đu&ocirc;i định dạng &ldquo;.txt&rdquo; sẽ b&aacute;o lỗi.</li>
+        <li>Nếu file c&oacute; &iacute;t hơn 3 từ kh&aacute;c nhau sẽ b&aacute;o lỗi.</li>
+        <li>Kiểm tra c&aacute;c y&ecirc;u cầu của file văn bản theo m&ocirc; tả ở tr&ecirc;n nếu kh&ocirc;ng thoả m&atilde;n sẽ b&aacute;o lỗi.</li>
+        <li>Sử dụng Web worker để xử l&yacute; văn bản.</li>
+    </ul>
+    <p>&nbsp;</p>
+    <input type="file" id="file_input" accept=".txt">
+    <div id="drop_zone">Or drag and drop a text file here</div>
+    <div id="output"></div>
+    <script src="script.js"></script>
 </body>
 </html>

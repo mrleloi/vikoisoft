@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test 3 - Reservation Solution</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<p><strong><span style="color:#ff0000;font-size:11pt;">B&agrave;i 3:</span></strong><strong><span style="font-size:11pt;">&nbsp;</span></strong><span style="font-size:11pt;">Giả sử c&oacute; 1 hệ thống đặt b&agrave;n cho 1 nh&agrave; h&agrave;ng với y&ecirc;u cầu sau:</span></p>
+<ul>
+    <li style="list-style-type:disc;font-size:11pt;">
+        <p><span style="font-size:11pt;">Đơn h&agrave;ng được tạo bởi người d&ugrave;ng kh&ocirc;ng được tr&ugrave;ng thời gian v&agrave; số b&agrave;n với những đơn đặt h&agrave;ng kh&aacute;c đang c&oacute; trạng th&aacute;i l&agrave;&nbsp;</span><strong><span style="font-size:11pt;">Created</span></strong><span style="font-size:11pt;">&nbsp;hoặc&nbsp;</span><strong><span style="font-size:11pt;">Paid</span></strong><span style="font-size:11pt;">.</span></p>
+    </li>
+    <li style="list-style-type:disc;font-size:11pt;">
+        <p><span style="font-size:11pt;">Khi đơn đặt b&agrave;n tạo ra sẽ c&oacute; trạng th&aacute;i mặc định l&agrave;&nbsp;</span><strong><span style="font-size:11pt;">Created</span></strong><span style="font-size:11pt;">&nbsp;sau khi thanh to&aacute;n sẽ được chuyển về&nbsp;</span><strong><span style="font-size:11pt;">Paid</span></strong><span style="font-size:11pt;">.</span></p>
+    </li>
+    <li style="list-style-type:disc;font-size:11pt;">
+        <p><span style="font-size:11pt;">Sau khi đặt b&agrave;n&nbsp;</span><strong><span style="font-size:11pt;">15 ph&uacute;t</span></strong><span style="font-size:11pt;">&nbsp;nếu Kh&aacute;ch h&agrave;ng kh&ocirc;ng thực hiện thanh to&aacute;n trước hoặc giao dịch thanh to&aacute;n kh&ocirc;ng th&agrave;nh c&ocirc;ng th&igrave; sẽ tự động chuyển trạng th&aacute;i về&nbsp;</span><strong><span style="font-size:11pt;">Canceled</span></strong><span style="font-size:11pt;">&nbsp;để nhường chỗ cho người kh&aacute;c.</span></p>
+    </li>
+</ul>
+<p><strong><span style="font-size:11pt;">M&ocirc; tả c&aacute;ch xử l&yacute; đặt h&agrave;ng để đảm bảo kh&ocirc;ng bị tr&ugrave;ng v&agrave; c&aacute;ch để hệ thống c&oacute; thể update trạng th&aacute;i c&aacute;c đơn đặt sau 15 ph&uacute;t.&nbsp;</span></strong></p>
+<p><strong><span style="font-size:11pt;">Viết c&acirc;u query CSDL cho từng y&ecirc;u cầu nếu c&oacute;.</span></strong></p>
+
+<h3>Thiết kế Bảng</h3>
+<ol>
+    <li>
+        <p><strong>Bảng Reservations</strong>: Lưu trữ th&ocirc;ng tin chi tiết về đặt b&agrave;n, bao gồm kh&aacute;ch h&agrave;ng, thời gian đặt bàn (check-in bàn), thời gian tạo đơn hàng, v&agrave; tham chiếu đến ID b&agrave;n.<br><br></p>
+        <p>CREATE TABLE reservations (</p>
+        <p>&nbsp; &nbsp; id INTEGER PRIMARY KEY AUTOINCREMENT,</p>
+        <p>&nbsp; &nbsp; table_id INTEGER,</p>
+        <p>&nbsp; &nbsp; reservation_time DATETIME,</p>
+        <p>&nbsp; &nbsp; created_time DATETIME,</p>
+        <p>&nbsp; &nbsp; customer_id INTEGER,</p>
+        <p>&nbsp; &nbsp; status TEXT,</p>
+        <p>&nbsp; &nbsp; FOREIGN KEY (table_id) REFERENCES table_status(table_id)</p>
+        <p>);</p>
+        <p><br></p>
+    </li>
+    <li>
+        <p><strong>Bảng Table_Status</strong>: Lưu trạng th&aacute;i hiện tại của b&agrave;n, bao gồm một trường version cho Optimistic Locking.<br>
+            Lí do phải cần một trường version là ví dụ có 1000 người cùng đặt bàn vào một thời điểm, version sẽ tránh xung đột cho việc ghi và đảm bảo chỉ có một bản ghi (một người dùng) được đặt một bàn cho một thời điểm.<br>
+            (Vì đề bài yêu cầu không được trùng thời gian nên tự giả định logic business là một bàn khi đã được Paid thì sẽ không cho order trong vòng 4 tiếng, quản lý bằng cột "time".)<br></p>
+        <p>CREATE TABLE table_status (</p>
+        <p>&nbsp; &nbsp; table_id INTEGER PRIMARY KEY,</p>
+        <p>&nbsp; &nbsp; time DATETIME,</p>
+        <p>&nbsp; &nbsp; status TEXT,</p>
+        <p>&nbsp; &nbsp; version INTEGER DEFAULT 1</p>
+        <p>);</p>
+    </li>
+</ol>
+<p><br></p>
+
+<h3>Xử L&yacute; Đặt B&agrave;n để đảm bảo không bị trùng với Optimistic Locking</h3>
+<p>Qu&aacute; tr&igrave;nh đặt b&agrave;n sẽ bao gồm việc kiểm tra v&agrave; cập nhật trạng th&aacute;i của b&agrave;n dựa tr&ecirc;n th&ocirc;ng tin trong bảng <code>table_status</code> sử dụng Optimistic Locking.</p>
+<p><br></p>
+<p>def reserve_table(table_id, customer_id, reservation_time):</p>
+<p>&nbsp; &nbsp; conn = get_db_connection()</p>
+<p>&nbsp; &nbsp; cur = conn.cursor()</p>
+<p><br></p>
+<p>&nbsp; &nbsp; # Lấy trạng th&aacute;i v&agrave; version hiện tại của b&agrave;n</p>
+<p>&nbsp; &nbsp; cur.execute(&apos;SELECT time, status, version FROM table_status WHERE table_id = ?&apos;, (table_id,))</p>
+<p>&nbsp; &nbsp; row = cur.fetchone()</p>
+<p>&nbsp; &nbsp; # Thêm một số logic kiểm tra như bàn có available (theo time và status) với khoảng thời gian nhận vào từ client không...</p>
+<p>&nbsp; &nbsp; # Nếu ok bắt đầu tạo transaction để xử lý các thao tác ghi</p>
+<p><br></p>
+<p>&nbsp; &nbsp; if row and status == &apos;available&apos;:</p>
+<p>&nbsp; &nbsp; &nbsp; &nbsp; current_version = row[&apos;version&apos;]</p>
+<p><br></p>
+<p>&nbsp; &nbsp; &nbsp; &nbsp; # Cố gắng cập nhật trạng th&aacute;i của b&agrave;n</p>
+<p>&nbsp; &nbsp; &nbsp; &nbsp; cur.execute(&apos;&apos;&apos;</p>
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; UPDATE table_status</p>
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; SET status = &apos;reserved&apos;, version = version + 1</p>
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; WHERE table_id = ? AND time = ? AND version = ?</p>
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &apos;&apos;&apos;, (table_id, time, current_version))</p>
+<p><br></p>
+<p>&nbsp; &nbsp; &nbsp; &nbsp; if cur.rowcount == 1:</p>
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; # Th&agrave;nh c&ocirc;ng, tiến h&agrave;nh tạo reservation</p>
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; cur.execute(&apos;&apos;&apos;</p>
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; INSERT INTO reservations (table_id, customer_id, reservation_time, created_time, status)</p>
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; VALUES (?, ?, ?)</p>
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &apos;&apos;&apos;, (table_id, customer_id, reservation_time, created_time, 'CREATED'))</p>
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; conn.commit()</p>
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; return &quot;Reservation successful&quot;</p>
+<p>&nbsp; &nbsp; &nbsp; &nbsp; else:</p>
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; # Thất bại do xung đột version, c&oacute; thể thử lại hoặc b&aacute;o lỗi</p>
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; conn.rollback()</p>
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; return &quot;Failed to reserve table, please try again&quot;</p>
+<p>&nbsp; &nbsp; else:</p>
+<p>&nbsp; &nbsp; &nbsp; &nbsp; return &quot;Table is not available&quot;</p>
+<p><br></p>
+<p>&nbsp; &nbsp; conn.close()</p>
+<p><br></p>
+<p><br></p>
+<h3><strong>Update trạng thái các đơn đặt sau 15 phút.</strong></h3>
+<h4><strong>Cách 1 - Dùng cron riêng cho từng đơn hàng, trigger sau 15p.</strong></h4>
+<ul>
+    <li>Khi một đơn đặt b&agrave;n được tạo, trạng th&aacute;i của n&oacute; trong bảng reservations l&agrave; &apos;Created&apos;, tạo một cron sau 15 phút cho đơn hàng này. Đồng thời update trạng thái table_status là pending.</li>
+    <li>Nếu cron job được k&iacute;ch hoạt v&agrave; thấy rằng đơn h&agrave;ng vẫn ở trạng th&aacute;i &apos;Created&apos; sau 15 ph&uacute;t, n&oacute; sẽ thay đổi trạng th&aacute;i th&agrave;nh &apos;Cancelled&apos;. Đồng thời update trạng thái table_status là available.</li>
+    <li>Khi người d&ugrave;ng ho&agrave;n tất thanh to&aacute;n, cập nhật trạng th&aacute;i th&agrave;nh &apos;Paid&apos;, xoá các cron liên quan tới đơn hàng này. Đồng thời update trạng thái table_status là reserved.</li>
+</ul>
+<p>Ưu điểm:
+
+    Đơn giản và trực tiếp: Mỗi đơn hàng có một cron job riêng biệt xử lý, giúp dễ dàng theo dõi và quản lý trạng thái của từng đơn hàng cụ thể.
+    Độ chính xác cao: Đơn hàng được cập nhật trạng thái ngay lập tức khi hết hạn 15 phút, không phụ thuộc vào lịch trình kiểm tra định kỳ.
+</p>
+<p>Nhược điểm:
+
+    Quản lý cron job phức tạp: Nếu số lượng đơn hàng lớn, việc tạo và quản lý hàng nghìn cron jobs có thể trở nên phức tạp và khó khăn.
+    Tài nguyên hệ thống: Việc duy trì nhiều cron jobs có thể tiêu tốn tài nguyên hệ thống, đặc biệt là khi số lượng đơn hàng tăng cao.</p>
+<p><br></p>
+<h4><strong>Cách 2 - Dùng cron chung cho mọi đơn hàng, mỗi 30s.</strong></h4>
+<ul>
+    <li>C&agrave;i đặt một cron job chạy mỗi 30s hoặc tuỳ chỉnh, kiểm tra c&aacute;c đơn đặt b&agrave;n c&oacute; trạng th&aacute;i &apos;Created&apos; m&agrave; đ&atilde; vượt qu&aacute; thời gian cho ph&eacute;p (15 ph&uacute;t). Nếu t&igrave;m thấy, cập nhật trạng th&aacute;i của ch&uacute;ng th&agrave;nh &apos;Cancelled&apos;. Đồng thời update trạng thái table_status là available.</li>
+    <li>Đảm bảo rằng hệ thống của bạn c&oacute; khả năng xử l&yacute; đ&uacute;ng đắn c&aacute;c trạng th&aacute;i n&agrave;y trong trường hợp xảy ra lỗi hoặc gi&aacute;n đoạn.</li>
+</ul>
+<p><strong>UPDATE reservations
+    SET status = 'Canceled'
+    WHERE status = 'Created'
+    AND TIMESTAMPDIFF(MINUTE, created_time, NOW()) > 15;</strong></p>
+<p>Ưu điểm:
+
+    Quản lý tập trung: Chỉ cần một hoặc một vài cron job chạy định kỳ để kiểm tra tất cả đơn hàng, giúp dễ dàng quản lý và bảo trì.
+    Hiệu quả tài nguyên: Tiêu thụ ít tài nguyên hệ thống hơn so với việc duy trì nhiều cron job riêng lẻ.
+</p>
+<p>Nhược điểm:
+
+    Độ trễ có thể xảy ra: Có thể có độ trễ trong việc cập nhật trạng thái đơn hàng, tùy thuộc vào khoảng thời gian giữa các lần chạy cron job.
+    Phức tạp khi xử lý lớn: Nếu số lượng đơn hàng rất lớn, việc xử lý tất cả trong một lần chạy có thể làm chậm hệ thống và tăng nguy cơ xảy ra lỗi.
+</p>
+<h4>Lựa Chọn Tốt Nhất</h4>
+<p>Nếu hệ thống phục vụ một lượng lớn đơn hàng và yêu cầu hiệu suất cao, Cách 2 là lựa chọn khả thi hơn vì nó hiệu quả hơn về mặt tài nguyên và dễ quản lý hơn. Tuy nhiên, nếu mỗi đơn hàng yêu cầu sự chính xác cao về thời gian và có thể quản lý được việc thiết lập và bảo trì các cron job, Cách 1 có thể là phương án phù hợp.
+</p>
+<p><br></p>
+<h3>Một số lưu ý</h3>
+<p>1. Khi hệ thống có lượng dữ liệu reservation quá lớn, ví dụ 10M bản ghi, các thao tác đọc/ghi sẽ chậm hơn nên sẽ có thể gây ra lỗi với một hệ thống cần chính xác về thời gian và đảm bảo chỉ một đơn hàng duy nhất được đặt, nhất là với lượng cron lớn.</p>
+<p>Nếu có khả năng đó xảy ra khuyến khích xây dựng bảng reservations thành các partition theo reservation_time, thời gian chia partition có thể là hàng tháng. Các bản ghi cũ chỉ sử dụng cho mục đích thống kê mà không cần query thường xuyên có thể lưu trữ ở nơi khác để giảm tải cho bảng.</p>
+<p>2. Việc xử lý các request tạo đơn hàng nên được xây dựng thành các hàng đợi theo thời gian FIFO để đảm bảo tính công bằng và giảm tải cho hệ thống cũng như tránh lỗi liên quan đến locking cho database.</p>
+</body>
+</html>

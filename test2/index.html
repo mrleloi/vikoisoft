@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test 2 - Water Trapping Visualization</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <p><strong>B&agrave;i 2:</strong><strong> Tạo ra một trang gồm c&oacute;:</strong></p>
+    <ul>
+        <li><strong>1 &ocirc; input.</strong></li>
+        <li><strong>1 container c&oacute; chứa thẻ SVG hoặc Canvas.</strong></li>
+    </ul>
+    <p><strong>Y&ecirc;u cầu:</strong></p>
+    <ul>
+        <li><strong>Đầu v&agrave;o của &ocirc; input sẽ l&agrave; 1 d&atilde;y số tự nhi&ecirc;n [0, &infin;) v&agrave; được ngăn c&aacute;ch nhau bởi dấu &ldquo;,&rdquo;</strong></li>
+        <li><strong>Từ dữ liệu ở &ocirc; input sử dụng javascript vẽ ra c&aacute;c h&igrave;nh khối c&oacute; dạng sau bằng canvas:</strong></li>
+    </ul>
+    <p>VD: với input l&agrave; 3,0,2,0,4 ta c&oacute; được kết quả:</p>
+    <img src="result.png"/>
+    <p><em>Trong đ&oacute;:&nbsp;</em></p>
+    <ul>
+        <li><em>Vị tr&iacute; của cột sẽ l&agrave; index của số trong mảng</em></li>
+        <li><em>Gi&aacute; trị của số trong mảng sẽ l&agrave; độ cao của c&aacute;c cột block.</em></li>
+    </ul>
+    <ul>
+        <li>Giả sử c&aacute;c cột block tr&ecirc;n sẽ tạo 1 bức tường v&agrave; coi 1 block = 1 m&sup3;, t&iacute;nh lượng nước tối đa c&oacute; thể chứa được (tương ứng với phần m&agrave;u xanh).&nbsp;</li>
+    </ul>
+    <p><em><u>Kết quả bằng 7 với v&iacute; dụ ở tr&ecirc;n</u></em></p>
+    <p>&nbsp;</p>
+    <div id="input">
+        <input type="text" id="inputNumbers" placeholder="Enter numbers separated by commas" value="3,0,2,0,40,3,0,2,0,40">
+        <button id="drawButton">Draw and Calculate Water</button>
+        <div id="waterVolume">Total water volume: -</div>
+    </div>
+    <canvas id="myCanvas" width="1280" height="300"></canvas>
+    <script src="script.js"></script>
+</body>
+</html>
