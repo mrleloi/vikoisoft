@@ -151,10 +151,17 @@ function startWorker(slice, taskId) {
 function handleWorkerMessage(event, taskId) {
   if (event.data.type === 'done') {
     console.log('Task #' + taskId + ' result: ', event.data.result);
-    results[taskId] = event.data.result;
     numWorkerTasksCompleted++;
+    results[taskId] = event.data.result;
+    Object.keys(event.data.result).forEach(word => {
+      globalWordCounts[word] = (globalWordCounts[word] || 0) + event.data.result[word];
+    });
+
     if (numWorkerTasksCompleted == numWorkers) {
-      let resultString = Object.keys(results).sort().map(key => `${results[key]}`).join('+');
+      const wordList = Object.entries(globalWordCounts);
+      wordList.sort((a, b) => b[1] - a[1]); // Sắp xếp giảm dần theo số lần xuất hiện
+      const topThreeWords = wordList.slice(0, 3);
+      let resultString = 'Top three words:' + topThreeWords.map(w => `${w[0]}: ${w[1]}`).join(', ');
       document.getElementById('output').innerText = 'All slices processed. Data: ' + resultString;
     }
     // delete workerTasks[taskId];

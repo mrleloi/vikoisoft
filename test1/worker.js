@@ -22,13 +22,16 @@ self.addEventListener('message', function(e) {
 });
 
 function processSlice(arrayBuffer) {
-    // Ví dụ: Đếm số từ trong một đoạn văn bản
     const text = new TextDecoder("utf-8").decode(arrayBuffer);
-    console.log(text);
-    const words = text.trim();
-    let wordCounts = 0;
-    if (words) {
-        wordCounts = words.split(/\s+/).length;
-    }
+    const normalizedText = text.toLowerCase().replace(/[^a-z\s,.]/g, ''); // Chỉ giữ chữ cái, khoảng trắng, dấu chấm và phẩy
+    const words = normalizedText.split(/\s+/);
+    const wordCounts = {};
+
+    words.forEach(word => {
+        if (word) { // Tránh thêm chuỗi rỗng
+            wordCounts[word] = (wordCounts[word] || 0) + 1;
+        }
+    });
+
     return wordCounts;
 }
