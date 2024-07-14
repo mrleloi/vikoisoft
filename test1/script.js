@@ -161,7 +161,7 @@ function handleWorkerMessage(event, taskId) {
       wordList.sort((a, b) => b[1] - a[1]); // Sắp xếp giảm dần theo số lần xuất hiện
       const topThreeWords = wordList.slice(0, 3);
       let resultString = 'Total difference words: '+ totalUniqueWords +'. Top three words: ' + topThreeWords.map(w => `${w[0]}: ${w[1]}`).join(', ');
-      document.getElementById('output').innerText = `
+      document.getElementById('output').innerHTML = `
           <p>All slices processed.</p>
           <p>Total unique words: ${totalUniqueWords}</p>
           <p>Top three words:</p>
