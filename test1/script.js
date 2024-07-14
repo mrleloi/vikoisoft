@@ -1,7 +1,6 @@
 let isPerformanceChecked = false;
 let numWorkers = 0;
 let workerTasks = {};
-let results = [];
 let globalWordCounts = [];
 let numWorkerTasksCompleted = 0;
 let retriesCount = {};
@@ -152,17 +151,24 @@ function handleWorkerMessage(event, taskId) {
   if (event.data.type === 'done') {
     console.log('Task #' + taskId + ' result: ', event.data.result);
     numWorkerTasksCompleted++;
-    results[taskId] = event.data.result;
     Object.keys(event.data.result).forEach(word => {
       globalWordCounts[word] = (globalWordCounts[word] || 0) + event.data.result[word];
     });
 
     if (numWorkerTasksCompleted == numWorkers) {
+      const totalUniqueWords = Object.keys(globalWordCounts).length;
       const wordList = Object.entries(globalWordCounts);
       wordList.sort((a, b) => b[1] - a[1]); // Sắp xếp giảm dần theo số lần xuất hiện
       const topThreeWords = wordList.slice(0, 3);
-      let resultString = 'Top three words:' + topThreeWords.map(w => `${w[0]}: ${w[1]}`).join(', ');
-      document.getElementById('output').innerText = 'All slices processed. Data: ' + resultString;
+      let resultString = 'Total difference words: '+ totalUniqueWords +'. Top three words: ' + topThreeWords.map(w => `${w[0]}: ${w[1]}`).join(', ');
+      document.getElementById('output').innerText = `
+          <p>All slices processed.</p>
+          <p>Total unique words: ${totalUniqueWords}</p>
+          <p>Top three words:</p>
+          <ul>
+          ${topThreeWords.map(word => `<li>${word[0]}: ${word[1]}</li>`).join('')}
+          </ul>
+          `;
     }
     // delete workerTasks[taskId];
     delete retriesCount[taskId];  // Xóa bỏ tracking khi đã hết số lần thử
