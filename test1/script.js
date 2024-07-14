@@ -2,7 +2,7 @@ let isPerformanceChecked = false;
 let numWorkers = 0;
 let workerTasks = {};
 let results = [];
-let globalWordCounts = {};
+let globalWordCounts = [];
 let numWorkerTasksCompleted = 0;
 let retriesCount = {};
 

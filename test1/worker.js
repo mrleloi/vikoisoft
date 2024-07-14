@@ -9,6 +9,7 @@ self.addEventListener('message', function(e) {
         try {
             // Giả sử bạn đang xử lý văn bản, thực hiện một số tính toán hoặc logic xử lý
             const result = processSlice(arrayBuffer);
+            console.log(result);
             self.postMessage({type: 'done', result: result, taskId: taskId});
         } catch (error) {
             // Gửi thông báo lỗi về cho main thread
