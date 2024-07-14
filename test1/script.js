@@ -1,6 +1,6 @@
 let isPerformanceChecked = false;
 let numWorkers = 0;
-let workerTasks = {};
+let workerTasks = [];
 let globalWordCounts = [];
 let numWorkerTasksCompleted = 0;
 let retriesCount = {};
@@ -206,13 +206,13 @@ function handleWorkerError(error, taskId) {
 }
 
 function retryTask(taskId) {
-  const taskDetails = workerTasks[taskId];
-  if (taskDetails && retriesCount[taskDetails.taskId] < 3) {
-    retriesCount[taskDetails.taskId]++;
-    console.log(`Retrying task ${taskDetails.taskId}. Attempt #${retriesCount[taskDetails.taskId]}`);
-    startWorker(taskDetails.slice, taskDetails.taskId);
+  let taskSlice = workerTasks[taskId].slice;
+  if (retriesCount[taskId] < 3) {
+    retriesCount[taskId]++;
+    console.log(`Retrying task ${taskId}. Attempt #${retriesCount[taskId]}`);
+    startWorker(taskSlice, taskId);
   } else {
-    console.log('Failed after 3 retries for task ' + taskDetails.taskId);
+    console.log('Failed after 3 retries for task ' + taskId);
   }
 }
 
